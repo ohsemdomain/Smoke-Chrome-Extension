@@ -46,7 +46,7 @@ export default function Home() {
     }
   }, [logs, isClient]);
 
-  const lastLog = useMemo(() => (logs.length > 0 ? logs[logs.length - 1] : null), [logs]);
+  const lastLog = useMemo(() => (logs.length > 0 ? logs[0] : null), [logs]);
 
   useEffect(() => {
     if (!lastLog || !isClient) {
@@ -83,6 +83,10 @@ export default function Home() {
   const handleClearLogs = () => {
     setLogs([]);
     setIsLogOpen(false);
+  };
+
+  const handleDeleteLog = (timestamp: number) => {
+    setLogs(prevLogs => prevLogs.filter(log => log !== timestamp));
   };
 
   const dailyCount = useMemo(() => {
@@ -133,7 +137,7 @@ export default function Home() {
               <DialogHeader>
                 <DialogTitle>Smoke Log</DialogTitle>
               </DialogHeader>
-              <LogList logs={logs} />
+              <LogList logs={logs} onDeleteLog={handleDeleteLog} />
               <DialogFooter>
                 {logs.length > 0 && (
                   <AlertDialog>

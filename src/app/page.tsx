@@ -6,6 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppSkeleton } from '@/components/app-skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { LogList } from '@/components/log-list';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 const STORAGE_KEY = 'smoke_break_tracker_logs';
 
@@ -14,6 +26,7 @@ export default function Home() {
   const [timeSinceLast, setTimeSinceLast] = useState<string>('--:--:--');
   const [isPulsing, setIsPulsing] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [isLogOpen, setIsLogOpen] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -62,9 +75,14 @@ export default function Home() {
 
   const handleLogCigarette = () => {
     const now = Date.now();
-    setLogs(prevLogs => [...prevLogs, now]);
+    setLogs(prevLogs => [now, ...prevLogs]);
     setIsPulsing(true);
     setTimeout(() => setIsPulsing(false), 500);
+  };
+
+  const handleClearLogs = () => {
+    setLogs([]);
+    setIsLogOpen(false);
   };
 
   const dailyCount = useMemo(() => {
@@ -107,6 +125,43 @@ export default function Home() {
             <p className="text-sm text-muted-foreground font-headline">Today's Count</p>
             <p className="text-3xl font-bold text-foreground">{dailyCount}</p>
           </div>
+           <Dialog open={isLogOpen} onOpenChange={setIsLogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="link" className="text-muted-foreground">View Log</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Smoke Log</DialogTitle>
+              </DialogHeader>
+              <LogList logs={logs} />
+              <DialogFooter>
+                {logs.length > 0 && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">Delete All Logs</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete all your smoke logs. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearLogs}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+                <DialogClose asChild>
+                  <Button variant="outline">Close</Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
     </main>

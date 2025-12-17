@@ -17,11 +17,18 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "web_accessible_resources": [
     {
-      "resources": ["_next/static/*", "favicon.ico"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "next/static/*",
+        "favicon.ico"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

@@ -1,32 +1,14 @@
+//src/app/page.tsx
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Flame } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { AppSkeleton } from '@/components/app-skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { LogList } from '@/components/log-list';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-
+import {useEffect, useMemo, useState} from 'react';
 
 const STORAGE_KEY = 'smoke_break_tracker_logs';
 
 export default function Home() {
   const [logs, setLogs] = useState<number[]>([]);
   const [timeSinceLast, setTimeSinceLast] = useState<string>('--:--:--');
-  const [isPulsing, setIsPulsing] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [isLogOpen, setIsLogOpen] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -75,18 +57,7 @@ export default function Home() {
 
   const handleLogCigarette = () => {
     const now = Date.now();
-    setLogs(prevLogs => [now, ...prevLogs]);
-    setIsPulsing(true);
-    setTimeout(() => setIsPulsing(false), 500);
-  };
-
-  const handleClearLogs = () => {
-    setLogs([]);
-    setIsLogOpen(false);
-  };
-
-  const handleDeleteLog = (timestamp: number) => {
-    setLogs(prevLogs => prevLogs.filter(log => log !== timestamp));
+    setLogs((previousLogs) => [now, ...previousLogs]);
   };
 
   const dailyCount = useMemo(() => {
@@ -98,76 +69,44 @@ export default function Home() {
   }, [logs, isClient]);
   
   if (!isClient) {
-    return <AppSkeleton />;
+    return (
+      <main className="popup">
+        <section className="card">
+          <div className="muted">Loading…</div>
+        </section>
+      </main>
+    );
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-background">
-      <Card className="w-full max-w-xs sm:max-w-sm rounded-2xl shadow-xl border-border/20 bg-card">
-        <CardHeader className="items-center p-6 pb-2">
-          <CardTitle className="text-lg font-medium text-muted-foreground font-headline tracking-wide">
-            Time Since Last
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center gap-6 px-6 pb-6 pt-2">
-          <div className="text-6xl sm:text-7xl font-bold font-mono text-primary tabular-nums">
-            {timeSinceLast}
+    <main className="popup popup-home">
+      <section className="card">
+        <header className="header">
+          <div className="title">Smoke Break Tracker</div>
+          <div className="subtitle">Time since last</div>
+        </header>
+
+        <div className="timer" aria-label="Time since last smoke">
+          {timeSinceLast}
+        </div>
+
+        <button className="btn btn-primary" onClick={handleLogCigarette} type="button">
+          Log Smoke
+        </button>
+
+        <div className="stats">
+          <div className="stat">
+            <div className="stat-label">Today&apos;s count</div>
+            <div className="stat-value">{dailyCount}</div>
           </div>
-          <Button
-            size="lg"
-            onClick={handleLogCigarette}
-            className={cn(
-              'w-full h-16 text-xl rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform duration-200 active:scale-95',
-              isPulsing && 'animate-pulse-once'
-            )}
-            aria-label="Log a smoked cigarette"
-          >
-            <Flame className="mr-3 h-7 w-7" />
-            Log Smoke
-          </Button>
-          <div className="text-center pt-2">
-            <p className="text-sm text-muted-foreground font-headline">Today's Count</p>
-            <p className="text-3xl font-bold text-foreground">{dailyCount}</p>
-          </div>
-           <Dialog open={isLogOpen} onOpenChange={setIsLogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="link" className="text-muted-foreground">View Log</Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Smoke Log</DialogTitle>
-              </DialogHeader>
-              <LogList logs={logs} onDeleteLog={handleDeleteLog} />
-              <DialogFooter>
-                {logs.length > 0 && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive">Delete All Logs</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete all your smoke logs. This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleClearLogs}>
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-                <DialogClose asChild>
-                  <Button variant="outline">Close</Button>
-                </DialogClose>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="row row-bottom">
+          <a className="btn btn-secondary" href="/log/index.html">
+            View Logs
+          </a>
+        </div>
+      </section>
     </main>
   );
 }

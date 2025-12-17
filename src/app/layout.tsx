@@ -1,6 +1,6 @@
+//src/app/layout.tsx
 import type {Metadata} from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: 'Smoke Break Tracker',
@@ -12,16 +12,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isExtensionBuild = process.env.EXTENSION_BUILD === 'true';
+
   return (
-    <html lang="en" className="light">
+    <html lang="en" className="light" data-extension-popup={isExtensionBuild ? 'true' : undefined}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased">
+      <body
+        data-extension-popup={isExtensionBuild ? 'true' : undefined}
+      >
         {children}
-        <Toaster />
       </body>
     </html>
   );

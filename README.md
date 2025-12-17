@@ -1,18 +1,15 @@
-# Firebase Studio
+# Smoke Break Tracker (Chrome Extension)
 
-This is a NextJS starter in Firebase Studio.
+This repo builds a Manifest V3 Chrome extension whose popup UI is a static-exported Next.js app.
 
-To get started, take a look at src/app/page.tsx.
+## Edit the UI
 
-## Chrome extension build
+- UI + logic: `src/app/page.tsx`
+- Styling: `src/app/globals.css`
+- Layout wrapper (fonts + extension popup sizing flag): `src/app/layout.tsx`
 
-Refer to [the full Chrome extension guide](docs/chrome-extension.md) for screenshots and troubleshooting tips. The quick steps are:
+## Build + load in Chrome
 
-1. Install dependencies with `npm install`.
-2. Create a static build configured for Chrome extensions: `npm run build:extension`.
-3. In Chrome, open **chrome://extensions**, enable **Developer mode**, and choose **Load unpacked**.
-4. Select the `extension/dist` directory to load the Smoke Break Tracker as the toolbar popup.
-
-## Push changes to your GitHub fork without the "Create PR" button
-
-If the GitHub UI won’t let you click **Create PR**, follow the terminal-based checklist in [docs/push-to-github.md](docs/push-to-github.md) to push your branch and open a pull request via the CLI or a direct compare URL. The guide also covers fixing web upload errors like `Binary files are not supported`.
+1. Build the extension bundle: `npm run build:extension`
+2. Chrome → `chrome://extensions` → enable **Developer mode** → **Load unpacked**
+3. Select `extension/dist`

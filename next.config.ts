@@ -1,7 +1,11 @@
 import type {NextConfig} from 'next';
 
+const isExtensionBuild = process.env.EXTENSION_BUILD === 'true';
+
 const nextConfig: NextConfig = {
   /* config options here */
+  output: isExtensionBuild ? 'export' : undefined,
+  trailingSlash: isExtensionBuild,
   typescript: {
     ignoreBuildErrors: true,
   },

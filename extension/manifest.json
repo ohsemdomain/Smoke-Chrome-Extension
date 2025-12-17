@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Smoke Break Tracker",
+  "version": "1.0.0",
+  "description": "Log smoke breaks and track the time since your last cigarette directly from the Chrome toolbar.",
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Smoke Break Tracker",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage"],
+  "web_accessible_resources": [
+    {
+      "resources": ["_next/static/*", "favicon.ico"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

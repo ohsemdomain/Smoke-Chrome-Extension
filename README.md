@@ -1,153 +1,92 @@
-# Smoke Break Tracker 🚬
+# Smoke Break Tracker (Chrome Extension)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-blue.svg" />
-  <img src="https://img.shields.io/badge/platform-Chrome_Extension-green.svg" />
-  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" />
-  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" />
-  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white" />
+A lightweight **Chrome extension** (Manifest V3) to **track smoke breaks / cigarette use** by logging events and showing a live **timer since your last finished smoke**—right from your browser toolbar.
+
+Built for habit awareness: quick logging, simple stats, and **local-only storage**.
+
+<p>
+  <img alt="Chrome Extension Manifest V3" src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-4285F4" />
+  <img alt="React" src="https://img.shields.io/badge/React-UI-61DAFB?logo=react&logoColor=000" />
+  <img alt="Vite" src="https://img.shields.io/badge/Vite-Build-646CFF?logo=vite&logoColor=fff" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-Code-3178C6?logo=typescript&logoColor=fff" />
+  <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind-CSS-38B2AC?logo=tailwindcss&logoColor=fff" />
 </p>
 
-<p align="center">
-  <strong>A privacy-focused Chrome extension to track smoke breaks, build awareness, and reduce cigarette usage.</strong>
-</p>
+## Table of Contents
 
-<p align="center">
-  <em>Manifest V3 • Local-only storage • No tracking</em>
-</p>
+- [Features](#features)
+- [Privacy](#privacy)
+- [Install (Load Unpacked)](#install-load-unpacked)
+- [Supported Browsers](#supported-browsers)
+- [Tech Stack](#tech-stack)
+- [Development](#development)
+- [Customization](#customization)
+- [Contributing](#contributing)
+- [Disclaimer](#disclaimer)
+- [Keywords](#keywords)
 
----
+## Features
 
-## 📌 Table of Contents
+- **One-tap smoke logging** (timestamped)
+- **Live elapsed timer** since last finished smoke (assumes a 7‑minute smoke duration)
+- **Daily “Today” count**
+- **Logs screen**: review entries, delete individual entries, or delete all
+- **Boxes tracking**: log when you open a new box (brand + quantity), see last 30 days total, time since last, and average days per box
+- **Offline-first**: the extension UI runs in the popup
 
-* [Features](#-features)
-* [Privacy](#-privacy)
-* [Installation](#-installation)
-* [Tech Stack](#-tech-stack)
-* [Development & Customization](#-development--customization)
-* [Contributing](#-contributing)
-* [Disclaimer](#-disclaimer)
+## Privacy
 
----
+- **No accounts, no sync, no analytics**
+- The extension itself makes **no network requests**
+- Data is stored locally via `chrome.storage.local` (permission: `storage`) with a `localStorage` fallback when Chrome storage isn’t available
 
-## ✨ Features
+## Install (Load Unpacked)
 
-### ⏱️ Smart Tracking
+1. Install dependencies: `npm install`
+2. Build the extension bundle: `npm run build:extension`
+3. Open Chrome → `chrome://extensions`
+4. Enable **Developer mode**
+5. Click **Load unpacked**
+6. Select `extension/dist`
 
-* **One-tap logging** with precise timestamps
-* **Live timer** showing time since last finished smoke
-  *(defaults to a 7-minute duration)*
-* **Daily counters** for quick “Today” totals
+## Supported Browsers
 
-### 📦 Inventory & Insights
+- Google Chrome and other Chromium-based browsers that support Manifest V3 (e.g., Brave, Microsoft Edge)
 
-* **Pack / box tracking** (brand + quantity)
-* **Consumption statistics**:
+## Tech Stack
 
-  * Usage frequency
-  * Average days per box
-  * Totals for the last 30 days
+- **React** (popup UI)
+- **Vite** (build tooling) + **TypeScript**
+- **Tailwind CSS** (styling)
+- **Chrome Extension Manifest V3**
+- Storage: `chrome.storage.local` (+ `localStorage` fallback via `src/lib/storage.ts`)
 
-### 🛡️ Data Management
+## Development
 
-* **Full history log**
-* **Delete individual entries** or wipe everything
-* **Offline-first** — no cloud dependencies
+- Dev server (web UI): `npm run dev`
+- Build popup UI only (writes to `extension/dist`, does not include `manifest.json`): `npm run build`
+- Full extension build (popup UI + `manifest.json` + icons): `npm run build:extension`
 
----
+Key files:
+- Popup app router: `src/App.tsx`
+- Smoke logging screen: `src/screens/Home.tsx`
+- Smoke logs list: `src/screens/Logs.tsx`
+- Boxes tracking: `src/screens/Boxes.tsx`
+- Storage wrapper: `src/lib/storage.ts`
 
-## 🔒 Privacy
+## Customization
 
-**Your data stays on your device.**
+- Assumed smoke duration (used for “time since last finished”): `src/screens/Home.tsx`
+- Optional: add `extension/manifest.json` (and `extension/icons/icon16.png`, `icon48.png`, `icon128.png`) to override the generated manifest/icons used by `scripts/build-extension.mjs`
 
-* ❌ No accounts or logins
-* ❌ No analytics
-* ❌ No external network requests
+## Contributing
 
-All data is stored locally using:
+Issues and PRs are welcome—especially around UX improvements, accessibility, and stats/insights that help people reduce smoking.
 
-```ts
-chrome.storage.local
-```
+## Disclaimer
 
----
+This tool is for informational and habit-tracking purposes only and is not medical advice. If you’re trying to quit smoking, consider seeking professional support.
 
-## 🚀 Installation
+## Keywords
 
-This project is intended for **local installation via Chrome Developer Mode**.
-
-### 1️⃣ Build the Extension
-
-```bash
-npm install
-npm run build:extension
-```
-
-This generates a production-ready build in:
-
-```
-extension/dist
-```
-
-### 2️⃣ Load into Chrome
-
-1. Open `chrome://extensions`
-2. Enable **Developer mode** (top-right)
-3. Click **Load unpacked**
-4. Select the `extension/dist` directory
-
----
-
-## 🛠️ Tech Stack
-
-* **Framework**: React + TypeScript
-* **Styling**: Tailwind CSS
-* **Build Tool**: Vite
-* **Platform**: Chrome Extension (Manifest V3)
-* **Storage**: `chrome.storage.local`
-  *(with `localStorage` fallback during development)*
-
----
-
-## 💻 Development & Customization
-
-Want to tweak smoke duration, UI, or stats?
-
-### Useful Commands
-
-```bash
-npm run dev              # UI development in browser
-npm run build            # Production popup build
-npm run build:extension  # Full extension build (manifest + icons)
-```
-
-### Key Files
-
-* **Timer logic**: `src/screens/Home.tsx`
-* **Logs view**: `src/screens/Logs.tsx`
-* **Box statistics**: `src/screens/Boxes.tsx`
-* **Storage layer**: `src/lib/storage.ts`
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome 🙌
-Especially helpful areas:
-
-* 🎨 UX / UI improvements
-* ♿ Accessibility enhancements
-* 📈 Better insights & visualizations
-
-Feel free to open an **Issue** or **Pull Request**.
-
----
-
-## ⚠️ Disclaimer
-
-*This tool is for informational and habit-tracking purposes only.*
-*It is **not medical advice**. If you are trying to quit smoking, consider seeking professional medical support.*
-
----
-
-**Keywords:** smoke break tracker, cigarette counter, habit tracker, quit smoking, quantified self, chrome extension, manifest v3
+Smoke break tracker, cigarette tracker, smoking habit tracker, quit smoking tracker, smoke timer, Chrome extension, Manifest V3.

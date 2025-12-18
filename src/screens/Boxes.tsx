@@ -1,8 +1,7 @@
-//src/app/expense/page.tsx
-'use client';
-
 import {useEffect, useMemo, useRef, useState, type FormEvent} from 'react';
 
+import PageLoader from '@/components/PageLoader';
+import {getJson, setJson} from '@/lib/storage';
 import {formatDurationCompact, formatTimestampCompact} from '@/lib/time';
 
 const STORAGE_KEY = 'smoke_break_tracker_box_opens';
@@ -12,6 +11,10 @@ type BoxOpenLog = {
   timestamp: number;
   brand: string;
   boxes: number;
+};
+
+type Props = {
+  onNavigate: (to: '/' | '/log' | '/boxes') => void;
 };
 
 function createId() {
@@ -25,32 +28,25 @@ function normalizeBrand(value: string) {
   return value.trim().replace(/\s+/g, ' ');
 }
 
-function parseStoredLogs(raw: string | null): BoxOpenLog[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+function parseStoredLogs(raw: unknown): BoxOpenLog[] {
+  const parsed = Array.isArray(raw) ? raw : [];
+  const now = Date.now();
 
-    const now = Date.now();
-    return parsed
-      .filter((entry) => entry && typeof entry === 'object')
-      .map((entry) => ({
-        id: typeof entry.id === 'string' ? entry.id : createId(),
-        timestamp: typeof entry.timestamp === 'number' ? entry.timestamp : NaN,
-        brand: typeof entry.brand === 'string' ? entry.brand : '',
-        boxes: typeof entry.boxes === 'number' ? entry.boxes : 1,
-      }))
-      .filter((entry) => Number.isFinite(entry.timestamp) && entry.timestamp > 0 && entry.timestamp <= now)
-      .map((entry) => ({
-        ...entry,
-        brand: normalizeBrand(entry.brand),
-        boxes: Number.isFinite(entry.boxes) && entry.boxes > 0 ? Math.floor(entry.boxes) : 1,
-      }))
-      .filter((entry) => entry.brand.length > 0);
-  } catch (error) {
-    console.error('Failed to parse box logs from localStorage', error);
-    return [];
-  }
+  return parsed
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry: any) => ({
+      id: typeof entry.id === 'string' ? entry.id : createId(),
+      timestamp: typeof entry.timestamp === 'number' ? entry.timestamp : NaN,
+      brand: typeof entry.brand === 'string' ? entry.brand : '',
+      boxes: typeof entry.boxes === 'number' ? entry.boxes : 1,
+    }))
+    .filter((entry) => Number.isFinite(entry.timestamp) && entry.timestamp > 0 && entry.timestamp <= now)
+    .map((entry) => ({
+      ...entry,
+      brand: normalizeBrand(entry.brand),
+      boxes: Number.isFinite(entry.boxes) && entry.boxes > 0 ? Math.floor(entry.boxes) : 1,
+    }))
+    .filter((entry) => entry.brand.length > 0);
 }
 
 function findPreviousOpenForBrand(logsDesc: BoxOpenLog[], index: number) {
@@ -62,7 +58,7 @@ function findPreviousOpenForBrand(logsDesc: BoxOpenLog[], index: number) {
   return null;
 }
 
-export default function ExpensePage() {
+export default function Boxes({onNavigate}: Props) {
   const buttonBase =
     'inline-flex select-none items-center justify-center rounded-xl border px-3.5 py-3 text-sm font-semibold leading-none no-underline transition-[transform,opacity,background-color,color] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-onyx-100 disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:active:scale-100';
   const buttonSecondary = `${buttonBase} border-onyx-300 bg-onyx-200 text-onyx-900 hover:bg-onyx-300 focus-visible:ring-onyx-400`;
@@ -80,15 +76,29 @@ export default function ExpensePage() {
   const confirmCancelButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
+    let canceled = false;
     setIsClient(true);
-    const stored = parseStoredLogs(localStorage.getItem(STORAGE_KEY));
-    stored.sort((a, b) => b.timestamp - a.timestamp);
-    setLogs(stored);
+
+    (async () => {
+      const storedValue = await getJson<unknown>(STORAGE_KEY);
+      if (canceled) return;
+      const stored = parseStoredLogs(storedValue);
+      stored.sort((a, b) => b.timestamp - a.timestamp);
+      setLogs(stored);
+    })().catch((error) => {
+      console.error('Failed to load box logs', error);
+    });
+
+    return () => {
+      canceled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!isClient) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+    setJson(STORAGE_KEY, logs).catch((error) => {
+      console.error('Failed to persist box logs', error);
+    });
   }, [logs, isClient]);
 
   const brands = useMemo(() => {
@@ -171,24 +181,16 @@ export default function ExpensePage() {
   };
 
   if (!isClient) {
-    return (
-      <main className="h-full p-4">
-        <section className="flex h-full min-h-0 flex-col">
-          <div className="flex flex-1 items-center justify-center py-2.5 text-center text-[13px] text-onyx-700">
-            Loading…
-          </div>
-        </section>
-      </main>
-    );
+    return <PageLoader />;
   }
 
   return (
     <main className="h-full p-4">
       <section className="flex h-full min-h-0 flex-col">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5">
-          <a className={`${buttonSecondary} w-auto px-3 py-2.5`} href="/index.html">
+          <button className={`${buttonSecondary} w-auto px-3 py-2.5`} type="button" onClick={() => onNavigate('/')}>
             Back
-          </a>
+          </button>
 
           <div className="flex justify-center" aria-label="Boxes in last 30 days">
             <div className="rounded-full border border-onyx-300 bg-onyx-200 px-3 py-1 text-xs font-semibold text-onyx-900">

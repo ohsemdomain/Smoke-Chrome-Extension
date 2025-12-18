@@ -1,13 +1,16 @@
-//src/app/log/page.tsx
-'use client';
-
 import {useEffect, useMemo, useRef, useState} from 'react';
 
+import PageLoader from '@/components/PageLoader';
+import {getJson, setJson} from '@/lib/storage';
 import {formatTimestampCompact} from '@/lib/time';
 
 const STORAGE_KEY = 'smoke_break_tracker_logs';
 
-export default function LogPage() {
+type Props = {
+  onNavigate: (to: '/' | '/log' | '/boxes') => void;
+};
+
+export default function Logs({onNavigate}: Props) {
   const buttonBase =
     'inline-flex select-none items-center justify-center rounded-xl border px-3.5 py-3 text-sm font-semibold leading-none no-underline transition-[transform,opacity,background-color,color] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-onyx-100 disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:active:scale-100';
   const buttonSecondary = `${buttonBase} border-onyx-300 bg-onyx-200 text-onyx-900 hover:bg-onyx-300 focus-visible:ring-onyx-400`;
@@ -21,18 +24,30 @@ export default function LogPage() {
   const confirmCancelButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
+    let canceled = false;
     setIsClient(true);
-    try {
-      const storedLogs = localStorage.getItem(STORAGE_KEY);
-      if (storedLogs) setLogs(JSON.parse(storedLogs));
-    } catch (error) {
-      console.error('Failed to parse logs from localStorage', error);
-    }
+
+    (async () => {
+      const storedLogs = await getJson<unknown>(STORAGE_KEY);
+      if (canceled) return;
+      if (Array.isArray(storedLogs)) {
+        const validLogs = storedLogs.filter((value): value is number => typeof value === 'number');
+        setLogs(validLogs);
+      }
+    })().catch((error) => {
+      console.error('Failed to load logs', error);
+    });
+
+    return () => {
+      canceled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!isClient) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+    setJson(STORAGE_KEY, logs).catch((error) => {
+      console.error('Failed to persist logs', error);
+    });
   }, [logs, isClient]);
 
   const todaysCount = useMemo(() => {
@@ -59,24 +74,16 @@ export default function LogPage() {
   }, [confirmDeleteAllOpen]);
 
   if (!isClient) {
-    return (
-      <main className="h-full p-4">
-        <section className="flex h-full min-h-0 flex-col">
-          <div className="py-2.5 text-center text-[13px] text-onyx-700">
-            Loading…
-          </div>
-        </section>
-      </main>
-    );
+    return <PageLoader />;
   }
 
   return (
     <main className="h-full p-4">
       <section className="flex h-full min-h-0 flex-col">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5">
-          <a className={`${buttonSecondary} w-auto px-3 py-2.5`} href="/index.html">
+          <button className={`${buttonSecondary} w-auto px-3 py-2.5`} type="button" onClick={() => onNavigate('/')}>
             Back
-          </a>
+          </button>
 
           <div className="flex justify-center" aria-label="Today's count">
             <div className="rounded-full border border-onyx-300 bg-onyx-200 px-3 py-1 text-xs font-semibold text-onyx-900">
@@ -95,14 +102,9 @@ export default function LogPage() {
           </button>
         </div>
 
-        <section
-          className="mt-4 flex min-h-0 flex-1 flex-col border-t border-onyx-200 pt-3"
-          aria-label="Smoke log"
-        >
+        <section className="mt-4 flex min-h-0 flex-1 flex-col border-t border-onyx-200 pt-3" aria-label="Smoke log">
           {logs.length === 0 ? (
-            <div className="py-2.5 text-center text-[13px] text-onyx-700">
-              No logs yet.
-            </div>
+            <div className="py-2.5 text-center text-[13px] text-onyx-700">No logs yet.</div>
           ) : (
             <ul className="scrollbar-subtle m-0 flex min-h-0 flex-1 list-none flex-col gap-1.5 overflow-auto p-0 pr-1">
               {logs.map((timestamp) => (
@@ -110,9 +112,7 @@ export default function LogPage() {
                   key={timestamp}
                   className="flex items-center justify-between gap-2 rounded-xl border border-onyx-200 bg-onyx-50 px-2.5 py-2"
                 >
-                  <div className="truncate text-[11px] text-onyx-700">
-                    {formatTimestampCompact(timestamp)}
-                  </div>
+                  <div className="truncate text-[11px] text-onyx-700">{formatTimestampCompact(timestamp)}</div>
                   <button
                     className={buttonLink}
                     type="button"

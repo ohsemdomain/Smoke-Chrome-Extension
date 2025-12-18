@@ -1,65 +1,59 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import crypto from 'node:crypto';
+import {spawn} from 'node:child_process';
 import zlib from 'node:zlib';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
-const nextExportDir = path.join(projectRoot, 'out');
+
 const extensionRoot = path.join(projectRoot, 'extension');
 const distDir = path.join(extensionRoot, 'dist');
 const manifestPath = path.join(extensionRoot, 'manifest.json');
+const iconsDir = path.join(extensionRoot, 'icons');
 
-if (!fs.existsSync(nextExportDir)) {
-  console.error('Missing "out" directory. Run EXTENSION_BUILD=true next build before packaging.');
-  process.exit(1);
-}
-
-if (!fs.existsSync(manifestPath)) {
-  console.error('Missing extension/manifest.json. Ensure manifest exists before packaging.');
-  process.exit(1);
-}
-
-const copyRecursive = (source, destination) => {
-  const stats = fs.statSync(source);
-
-  if (stats.isDirectory()) {
-    fs.mkdirSync(destination, {recursive: true});
-    for (const entry of fs.readdirSync(source)) {
-      copyRecursive(path.join(source, entry), path.join(destination, entry));
-    }
-  } else {
-    fs.copyFileSync(source, destination);
+const readPackageVersion = () => {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
+    return typeof pkg.version === 'string' ? pkg.version : '1.0.0';
+  } catch {
+    return '1.0.0';
   }
 };
 
-const walkFiles = (rootDir, visitFile) => {
-  for (const entry of fs.readdirSync(rootDir, {withFileTypes: true})) {
-    const entryPath = path.join(rootDir, entry.name);
-    if (entry.isDirectory()) {
-      walkFiles(entryPath, visitFile);
-    } else if (entry.isFile()) {
-      visitFile(entryPath);
-    }
+const defaultManifest = () => ({
+  manifest_version: 3,
+  name: 'Smoke Break Tracker',
+  version: readPackageVersion(),
+  description: 'Log smoke breaks and track the time since your last cigarette directly from the Chrome toolbar.',
+  action: {
+    default_popup: 'index.html',
+    default_title: 'Smoke Break Tracker',
+    default_icon: {
+      16: 'icons/icon16.png',
+      48: 'icons/icon48.png',
+      128: 'icons/icon128.png',
+    },
+  },
+  icons: {
+    16: 'icons/icon16.png',
+    48: 'icons/icon48.png',
+    128: 'icons/icon128.png',
+  },
+  permissions: ['storage'],
+});
+
+const readManifest = () => {
+  if (!fs.existsSync(manifestPath)) return defaultManifest();
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    if (typeof manifest?.version !== 'string') manifest.version = readPackageVersion();
+    if (!manifest?.action?.default_popup) manifest.action = {...manifest.action, default_popup: 'index.html'};
+    return manifest;
+  } catch {
+    return defaultManifest();
   }
-};
-
-const rewriteNextAssetPaths = (rootDir) => {
-  const textExtensions = new Set(['.html', '.js', '.css', '.json', '.txt', '.map', '.xml', '.svg']);
-  const from = '/_next';
-  const to = '/next';
-
-  walkFiles(rootDir, (filePath) => {
-    if (!textExtensions.has(path.extname(filePath))) return;
-
-    const original = fs.readFileSync(filePath, 'utf8');
-    if (!original.includes(from)) return;
-
-    const updated = original.replaceAll(from, to);
-    fs.writeFileSync(filePath, updated);
-  });
 };
 
 const crc32 = (buffer) => {
@@ -109,12 +103,7 @@ const createPng = (width, height, rgbaData) => {
   const idat = zlib.deflateSync(raw, {level: 9});
   const iend = Buffer.alloc(0);
 
-  return Buffer.concat([
-    signature,
-    pngChunk('IHDR', ihdr),
-    pngChunk('IDAT', idat),
-    pngChunk('IEND', iend),
-  ]);
+  return Buffer.concat([signature, pngChunk('IHDR', ihdr), pngChunk('IDAT', idat), pngChunk('IEND', iend)]);
 };
 
 const renderIconPng = (size) => {
@@ -122,7 +111,7 @@ const renderIconPng = (size) => {
   const height = size;
   const data = Buffer.alloc(width * height * 4);
 
-  const bg = {r: 0x2f, g: 0x5a, b: 0x3b, a: 0xff};
+  const bg = {r: 0x45, g: 0x5c, b: 0x3d, a: 0xff};
   const fg = {r: 0xff, g: 0xff, b: 0xff, a: 0xff};
 
   const cx = (width - 1) / 2;
@@ -130,7 +119,6 @@ const renderIconPng = (size) => {
   const radius = Math.min(width, height) * 0.48;
   const r2 = radius * radius;
 
-  // Background circle with transparent outside.
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const dx = x - cx;
@@ -151,7 +139,6 @@ const renderIconPng = (size) => {
     }
   }
 
-  // Simple "S" glyph (8x8) scaled to fit.
   const glyph = [
     0b01111110,
     0b11000011,
@@ -178,9 +165,6 @@ const renderIconPng = (size) => {
           const x = startX + gx * scale + sx;
           const y = startY + gy * scale + sy;
           if (x < 0 || y < 0 || x >= width || y >= height) continue;
-          const dx = x - cx;
-          const dy = y - cy;
-          if (dx * dx + dy * dy > r2) continue;
           const offset = (y * width + x) * 4;
           data[offset] = fg.r;
           data[offset + 1] = fg.g;
@@ -194,141 +178,59 @@ const renderIconPng = (size) => {
   return createPng(width, height, data);
 };
 
-const ensurePngIcons = (iconsDir) => {
-  fs.mkdirSync(iconsDir, {recursive: true});
+const ensureIcons = (outputIconsDir) => {
+  fs.mkdirSync(outputIconsDir, {recursive: true});
+
   for (const size of [16, 48, 128]) {
-    const pngPath = path.join(iconsDir, `icon${size}.png`);
-    if (fs.existsSync(pngPath)) continue;
-    fs.writeFileSync(pngPath, renderIconPng(size));
-  }
-};
+    const filename = `icon${size}.png`;
+    const outputPath = path.join(outputIconsDir, filename);
 
-const rewriteManifestIconsToPng = (manifest) => {
-  const rewriteIconValue = (value) => {
-    if (typeof value !== 'string') return value;
-    if (value.endsWith('.png')) return value;
-    if (value.endsWith('.svg')) return value.slice(0, -4) + '.png';
-    return value;
-  };
-
-  if (manifest.action?.default_icon && typeof manifest.action.default_icon === 'object') {
-    for (const key of Object.keys(manifest.action.default_icon)) {
-      manifest.action.default_icon[key] = rewriteIconValue(manifest.action.default_icon[key]);
+    const sourcePath = path.join(iconsDir, filename);
+    if (fs.existsSync(sourcePath)) {
+      fs.copyFileSync(sourcePath, outputPath);
+      continue;
     }
-  }
 
-  if (manifest.icons && typeof manifest.icons === 'object') {
-    for (const key of Object.keys(manifest.icons)) {
-      manifest.icons[key] = rewriteIconValue(manifest.icons[key]);
+    if (!fs.existsSync(outputPath)) {
+      fs.writeFileSync(outputPath, renderIconPng(size));
     }
   }
 };
 
-const getHtmlAttributeValue = (attributes, name) => {
-  const match = attributes.match(
-    new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'),
-  );
-  return match ? match[1] ?? match[2] ?? match[3] ?? '' : null;
+const copyRecursive = (source, destination) => {
+  const stats = fs.statSync(source);
+
+  if (stats.isDirectory()) {
+    fs.mkdirSync(destination, {recursive: true});
+    for (const entry of fs.readdirSync(source)) {
+      copyRecursive(path.join(source, entry), path.join(destination, entry));
+    }
+  } else {
+    fs.mkdirSync(path.dirname(destination), {recursive: true});
+    fs.copyFileSync(source, destination);
+  }
 };
 
-const externalizeInlineScripts = (rootDir) => {
-  const inlineDir = path.join(rootDir, 'inline');
-  fs.mkdirSync(inlineDir, {recursive: true});
-
-  const scriptTag = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
-
-  const htmlFiles = [];
-  walkFiles(rootDir, (filePath) => {
-    if (path.extname(filePath) === '.html') htmlFiles.push(filePath);
+const run = (command, args) =>
+  new Promise((resolve, reject) => {
+    const child = spawn(command, args, {cwd: projectRoot, stdio: 'inherit'});
+    child.on('error', reject);
+    child.on('exit', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`${command} ${args.join(' ')} exited with code ${code ?? 'null'}`));
+    });
   });
 
-  for (const htmlPath of htmlFiles) {
-    const originalHtml = fs.readFileSync(htmlPath, 'utf8');
-    let changed = false;
-
-    const updatedHtml = originalHtml.replace(scriptTag, (fullMatch, attributesRaw, bodyRaw) => {
-      const attributes = attributesRaw ?? '';
-      const body = bodyRaw ?? '';
-
-      if (/\bsrc\s*=/i.test(attributes)) return fullMatch;
-
-      const type = getHtmlAttributeValue(attributes, 'type');
-      if (type && !['text/javascript', 'application/javascript', 'module'].includes(type)) {
-        return fullMatch;
-      }
-
-      if (!body.trim()) return fullMatch;
-
-      const hash = crypto.createHash('sha256').update(body).digest('hex').slice(0, 16);
-      const outFileName = `${hash}.js`;
-      const outDiskPath = path.join(inlineDir, outFileName);
-      const outWebPath = `/inline/${outFileName}`;
-
-      if (!fs.existsSync(outDiskPath)) {
-        fs.writeFileSync(outDiskPath, body.endsWith('\n') ? body : `${body}\n`);
-      }
-
-      const attributesWithoutNonce = attributes.replace(
-        /\s*\bnonce\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
-        '',
-      );
-      const normalizedAttributes = attributesWithoutNonce.trim();
-
-      changed = true;
-      return normalizedAttributes
-        ? `<script ${normalizedAttributes} src="${outWebPath}"></script>`
-        : `<script src="${outWebPath}"></script>`;
-    });
-
-    if (changed) {
-      fs.writeFileSync(htmlPath, updatedHtml);
-    }
-  }
-};
-
-const readAndRewriteManifest = (sourcePath) => {
-  const manifest = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
-
-  // Chrome extension icons are most reliable as PNGs; ensure they exist and
-  // rewrite any SVG icon references to PNG.
-  const extensionRoot = path.dirname(sourcePath);
-  ensurePngIcons(path.join(extensionRoot, 'icons'));
-  rewriteManifestIconsToPng(manifest);
-
-  if (Array.isArray(manifest.web_accessible_resources)) {
-    for (const item of manifest.web_accessible_resources) {
-      if (!item || !Array.isArray(item.resources)) continue;
-      item.resources = item.resources.map((resource) => {
-        if (typeof resource !== 'string') return resource;
-        return resource.startsWith('_next/') ? `next/${resource.slice('_next/'.length)}` : resource;
-      });
-    }
-  }
-
-  return manifest;
-};
+const node = process.execPath;
+const viteCli = path.join(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js');
 
 fs.rmSync(distDir, {recursive: true, force: true});
 fs.mkdirSync(distDir, {recursive: true});
 
-copyRecursive(nextExportDir, distDir);
+await run(node, [viteCli, 'build']);
 
-// Chrome extensions reserve path segments starting with "_", so rename Next's
-// default "_next" asset folder and rewrite all exported references.
-const nextDirFrom = path.join(distDir, '_next');
-const nextDirTo = path.join(distDir, 'next');
-if (fs.existsSync(nextDirFrom)) {
-  fs.renameSync(nextDirFrom, nextDirTo);
-}
-rewriteNextAssetPaths(distDir);
-externalizeInlineScripts(distDir);
-
-const rewrittenManifest = readAndRewriteManifest(manifestPath);
-fs.writeFileSync(path.join(distDir, 'manifest.json'), JSON.stringify(rewrittenManifest, null, 2) + '\n');
-
-const iconsDir = path.join(extensionRoot, 'icons');
-if (fs.existsSync(iconsDir)) {
-  copyRecursive(iconsDir, path.join(distDir, 'icons'));
-}
+const manifest = readManifest();
+fs.writeFileSync(path.join(distDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+ensureIcons(path.join(distDir, 'icons'));
 
 console.log('Chrome extension bundle created at extension/dist');

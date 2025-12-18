@@ -1,15 +1,14 @@
 {
-  "name": "nextn",
+  "name": "smoke-chrome-ext",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 9002",
-    "build": "NODE_ENV=production next build",
-    "build:extension": "node scripts/build-extension-with-next.mjs",
-    "start": "next start"
+    "dev": "vite",
+    "build": "vite build",
+    "build:extension": "node scripts/build-extension.mjs",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "next": "15.5.9",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },
@@ -18,7 +17,9 @@
     "@types/node": "^20",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.1.2",
     "tailwindcss": "^4.1.18",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^7.3.0"
   }
 }
